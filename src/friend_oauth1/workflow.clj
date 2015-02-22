@@ -1,11 +1,9 @@
 (ns friend-oauth1.workflow
   (:require
-   [oauth.client :as oauth]
-   [friend-oauth2.util :as util]
    [cemerick.friend :as friend]
-   [clj-http.client :as client]
    [schema.core :as s]
-   [ring.util.request :as request]))
+   [ring.util.request :as request]
+   [oauth.client :as oauth]))
 
 
 (s/defschema ClientConfig {:client-id     String
@@ -13,7 +11,12 @@
                            :callback {:domain String
                                       :path   String}})
 
-
+(defn- is-oauth2-callback?
+  [config request]
+  (or (= (request/path-info request)
+         (get-in config [:client-config :callback :path]))
+      (= (request/path-info request)
+         (or (:login-uri config) (-> request ::friend/auth-config :login-uri)))))
 
 
 
