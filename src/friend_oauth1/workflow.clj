@@ -6,18 +6,32 @@
    [oauth.client :as oauth]))
 
 
-(s/defschema ClientConfig {:client-id     String
-                           :client-secret String
+(s/defschema ClientConfig {:consumer oauth/Consumer
                            :callback {:domain String
-                                      :path   String}})
+                                      :path String}})
 
-(defn- is-oauth2-callback?
-  [config request]
+
+(defn- contains-valid-oauth1?
+  [request]
+  true)
+
+(defn- is-oauth1-callback?
+  [callback request]
   (or (= (request/path-info request)
-         (get-in config [:client-config :callback :path]))
+         (get-in callback [:path]))
       (= (request/path-info request)
-         (or (:login-uri config) (-> request ::friend/auth-config :login-uri)))))
+         (-> request ::friend/auth-config :login-uri))))
 
+
+(defn- redirect-to-provider!
+  "Redirects user to OAuth1 provider."
+  [consumer request]
+  (let [anti-forgery-token    (util/generate-anti-forgery-token)
+        session-with-af-token (assoc (:session request) (keyword anti-forgery-token) "state")]
+    (-> uri-config
+        (util/format-authn-uri anti-forgery-token)
+        ring.util.response/redirect
+        (assoc :session session-with-af-token))))
 
 
 (s/defn ^:always-validate workflow
@@ -25,7 +39,7 @@
   [config :- {(s/required-key :client-config) ClientConfig
               s/Any s/Any}];; The rest of config.
   (fn [request]
-    (when (is-oauth2-callback? config request)
+    (when (is-oauth1-callback? config request)
       ;; Extracts code from request if we are getting here via OAuth2 callback.
       ;; http://tools.ietf.org/html/draft-ietf-oauth-v2-31#section-4.1.2
       (let [{:keys [state code error]} (:params request)
@@ -38,8 +52,4 @@
               (vary-meta auth-map merge {::friend/workflow :oauth2
                                          ::friend/redirect-on-auth? true
                                          :type ::friend/auth})))
-          
-          (let [auth-error-fn (:auth-error-fn config)]
-            (if (and error auth-error-fn)
-              (auth-error-fn error)
-              (redirect-to-provider! config request))))))))
+          (redirect-to-provider! config request))))))
