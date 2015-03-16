@@ -19,6 +19,9 @@
        redirect-query (-> location url/url :query clojure.walk/keywordize-keys)]
 
 
+   (println auth-redirect)
+   (println location)
+   (println (-> location url/url :query))
    (println redirect-query)
    
    (:status auth-redirect)                               => 302

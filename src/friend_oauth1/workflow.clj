@@ -24,6 +24,10 @@
       (= (request/path-info request)
          (-> request ::friend/auth-config :login-uri))))
 
+(defn- request-token
+  "POSTs request to OAauth1 provider for authorization token."
+  [consumer callback-uri]
+  (oauth/request-token consumer callback-uri))
 
 (defn- redirect-to-provider!
   "Redirects user to OAuth1 provider"
@@ -32,6 +36,7 @@
         tok "abcd"
         approval-uri (oauth/user-approval-uri consumer tok)
         session-with-token {}]
+    (println (str "approval uri: " approval-uri))
     (-> approval-uri
         ring.util.response/redirect)))
 ;; (assoc :session session-with-af-token))))
